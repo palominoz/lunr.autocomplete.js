@@ -1,14 +1,17 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var NGramFilter = require('./nGramFilter');
+lunr.NGramFilter = require('./nGramFilter');
+
 
 lunr.autocomplete = function (idx, n) {
-	var ngramFilter = new NGramFilter(n);
+	var ngramFilter = new lunr.NGramFilter(n);
 	this.indexPipeline.before(lunr.stemmer, ngramFilter.process);
 	this.autocomplete = ngramFilter.autocomplete;
 };
 
 },{"./nGramFilter":2}],2:[function(require,module,exports){
 var PatriciaTree = require('patricia-tree');
+
+lunr.PatriciaTree = PatriciaTree;
 
 var insertPendingNGrams = function insertPendingNGrams (ngramList, tree, n) {
 	if (ngramList.length != n) {
@@ -48,7 +51,13 @@ var NGramFilter = function NGramFilter (n) {
 		},
 		autocomplete: function (prefix) {
 			return self.ngramAutocompleteTree.complete(prefix);
-		}
+		},
+		setPatriciaTree: function(patriciaTree){
+			self.ngramAutocompleteTree = patriciaTree;
+		},
+		getPatriciaTree: function(patriciaTree){
+			return self.ngramAutocompleteTree;
+		},
 	}
 };
 
@@ -144,10 +153,32 @@ Node.prototype.routeByHash = function(prefix) {
 	return this.children[prefix[0]];
 };
 
-function PatriciaTree () {
+
+
+function PatriciaTree (tree) {
 	this.root = new Node();
 	this.count = 0;
 }
+
+Node.build = function(params){
+	var node = new Node(params);
+	if (!params || !params.children) return node;
+	for (var key in params.children){
+		if (!params.children.hasOwnProperty(key)){ 
+			continue;
+		}
+		var child = Node.build(params.children[key]);
+		node.children[key] = child;
+	}
+	return node;
+};
+
+PatriciaTree.build = function(params){
+	var tree = new PatriciaTree();
+	tree.root = Node.build(params.root);
+	tree.count = params.count;
+	return tree;
+};
 
 var progressFrom = function(startNode, itemString, callback) {
 	var itemMatcher = new StringMatcher(itemString);	
